@@ -1,0 +1,50 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "windows-msys2-debug",
+      "displayName": "Windows MSYS2 Debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_MAKE_PROGRAM": "C:/ProgramData/chocolatey/bin/ninja.exe",
+        "CMAKE_C_COMPILER": "C:/msys64/mingw64/bin/gcc.exe",
+        "CMAKE_CXX_COMPILER": "C:/msys64/mingw64/bin/g++.exe"
+      }
+    },
+    {
+      "name": "windows-msys2-release",
+      "displayName": "Windows MSYS2 Release",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_MAKE_PROGRAM": "C:/ProgramData/chocolatey/bin/ninja.exe",
+        "CMAKE_C_COMPILER": "C:/msys64/mingw64/bin/gcc.exe",
+        "CMAKE_CXX_COMPILER": "C:/msys64/mingw64/bin/g++.exe"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "windows-msys2-debug",
+      "configurePreset": "windows-msys2-debug"
+    },
+    {
+      "name": "windows-msys2-release",
+      "configurePreset": "windows-msys2-release"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "windows-msys2-debug",
+      "configurePreset": "windows-msys2-debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

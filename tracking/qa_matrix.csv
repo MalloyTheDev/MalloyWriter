@@ -1,0 +1,11 @@
+Area,Scenario,Automated,Manual Gate,Status
+Build,Configure and run Qt Test suite,Yes,No,Passing locally
+Launch,Start MalloyWriter without crashing,Partial,Yes,Passing locally
+Documents,Open same file once and save edits,Yes,Yes,Passing locally
+Editor,Line numbers and current-line highlight,No,Yes,Implemented
+Editor,Find replace and go-to-line,No,Yes,Implemented
+Project,CMake File API target parsing,Yes,Yes,Passing locally
+Build,Compiler diagnostic parsing,Yes,Yes,Passing locally
+Language,JSON-RPC LSP framing,Yes,Yes,Passing locally
+Debug,DAP request boundary,No,Yes,Implemented
+Packaging,Windows deploy zip,No,Yes,Scripted

@@ -1,0 +1,32 @@
+name: Feature Request
+description: Propose a production IDE capability
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What workflow should this improve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Behavior
+      description: Describe the desired user-facing behavior.
+    validations:
+      required: true
+  - type: dropdown
+    id: subsystem
+    attributes:
+      label: Subsystem
+      options:
+        - Editor
+        - Project/CMake
+        - Build/Test/Run
+        - C++ Intelligence
+        - Debugging
+        - Packaging/Release
+        - AI Assistant
+        - Documentation

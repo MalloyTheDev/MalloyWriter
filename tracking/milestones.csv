@@ -1,0 +1,8 @@
+Milestone,Status,Exit Criteria,Owner Notes
+Production Foundation,In Progress,"CI passes; core services tested; docs and release checklist present","Current pass"
+Project And Build,In Progress,"CMake File API model parsed; configure/build/test/run jobs cancellable","Needs target picker UI"
+Editor,In Progress,"Line numbers, find/replace, go-to-line, diagnostics gutter markers","Needs reload prompt polish"
+C++ Intelligence,Started,"clangd process transport; document sync; diagnostics mapped","Transport exists; UI mapping next"
+Debugging,Started,"DAP-shaped lifecycle and first GDB-backed launch path","Request boundary exists"
+Assistant,Started,"Provider boundary disabled by default; model research documented","No network calls from app"
+Packaging,Started,"Windows zip produced by package script; release checklist documented","Script added"

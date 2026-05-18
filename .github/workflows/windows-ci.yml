@@ -1,0 +1,77 @@
+name: Windows CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    name: Build and test
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install MSYS2 toolchain
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-qt6-base
+            mingw-w64-x86_64-qt6-tools
+            mingw-w64-x86_64-gdb
+
+      - name: Build and test
+        shell: pwsh
+        run: ./build.ps1 -RunTests
+
+      - name: Smoke launch
+        shell: pwsh
+        run: |
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $p = Start-Process -FilePath ".\build\MalloyWriter.exe" -PassThru -WindowStyle Hidden
+          Start-Sleep -Seconds 2
+          if ($p.HasExited) {
+            throw "MalloyWriter exited early with code $($p.ExitCode)"
+          }
+          Stop-Process -Id $p.Id
+
+  package:
+    name: Package Windows app
+    runs-on: windows-latest
+    needs: build-test
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install MSYS2 toolchain
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-qt6-base
+            mingw-w64-x86_64-qt6-tools
+
+      - name: Package
+        shell: pwsh
+        run: ./scripts/package-windows.ps1 -Clean
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: MalloyWriter-win64
+          path: dist/MalloyWriter-win64.zip

@@ -1,0 +1,11 @@
+build/
+build-release/
+dist/
+release/
+.malloywriter/
+CMakeUserPresets.json
+*.user
+*.autosave
+*.log
+*.tmp
+Testing/
