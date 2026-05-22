@@ -8,6 +8,8 @@
 namespace MalloyWriter::Editor {
 
 class CodeEditor;
+class Breadcrumbs;
+class Minimap;
 
 class EditorWidget : public QWidget {
     Q_OBJECT
@@ -27,6 +29,8 @@ private:
 
     Document *m_document = nullptr;
     CodeEditor *m_textEdit = nullptr;
+    Breadcrumbs *m_breadcrumbs = nullptr;
+    Minimap *m_minimap = nullptr;
     bool m_applyingDocumentText = false;
 };
 

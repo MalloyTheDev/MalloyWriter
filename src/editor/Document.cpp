@@ -72,7 +72,12 @@ bool Document::load(const QString &path)
     const QString normalizedPath = QFileInfo(path).absoluteFilePath();
     const QByteArray bytes = file.readAll();
     m_lineEnding = detectLineEnding(bytes);
+    // Store text with '\n' line endings internally (the original ending is
+    // remembered in m_lineEnding and restored on save). This keeps the document
+    // in sync with QPlainTextEdit, which always uses '\n'.
     m_text = QString::fromUtf8(bytes);
+    m_text.replace(QStringLiteral("\r\n"), QStringLiteral("\n"));
+    m_text.replace(QLatin1Char('\r'), QLatin1Char('\n'));
 
     if (m_path != normalizedPath) {
         m_path = normalizedPath;

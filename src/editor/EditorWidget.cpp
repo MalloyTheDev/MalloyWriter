@@ -1,26 +1,70 @@
 #include "editor/EditorWidget.hpp"
 
+#include "editor/Breadcrumbs.hpp"
 #include "editor/CodeEditor.hpp"
+#include "editor/CppSyntaxHighlighter.hpp"
+#include "editor/Minimap.hpp"
 
-#include <QFontDatabase>
+#include <QFileInfo>
+#include <QFont>
+#include <QHBoxLayout>
 #include <QVBoxLayout>
 
 namespace MalloyWriter::Editor {
+
+namespace {
+
+bool isCppFile(const QString &fileName)
+{
+    static const QStringList suffixes = {
+        "cpp", "cc", "cxx", "c", "hpp", "hxx", "h", "inl", "ipp", "tpp",
+    };
+    return suffixes.contains(QFileInfo(fileName).suffix().toLower());
+}
+
+} // namespace
 
 EditorWidget::EditorWidget(Document *document, QWidget *parent)
     : QWidget(parent)
     , m_document(document)
     , m_textEdit(new CodeEditor(this))
 {
-    auto *layout = new QVBoxLayout(this);
-    layout->setContentsMargins(0, 0, 0, 0);
-    layout->addWidget(m_textEdit);
+    auto *root = new QVBoxLayout(this);
+    root->setContentsMargins(0, 0, 0, 0);
+    root->setSpacing(0);
 
-    QFont editorFont = QFontDatabase::systemFont(QFontDatabase::FixedFont);
+    m_breadcrumbs = new Breadcrumbs(this);
+    root->addWidget(m_breadcrumbs);
+
+    auto *editorRow = new QWidget(this);
+    auto *rowLayout = new QHBoxLayout(editorRow);
+    rowLayout->setContentsMargins(0, 0, 0, 0);
+    rowLayout->setSpacing(0);
+    rowLayout->addWidget(m_textEdit, 1);
+    m_minimap = new Minimap(m_textEdit, editorRow);
+    rowLayout->addWidget(m_minimap);
+    root->addWidget(editorRow, 1);
+
+    QFont editorFont;
+    editorFont.setFamilies({"Geist Mono", "Cascadia Mono", "JetBrains Mono", "Consolas"});
+    editorFont.setStyleHint(QFont::Monospace);
+    editorFont.setFixedPitch(true);
     editorFont.setPointSize(10);
     m_textEdit->setFont(editorFont);
     m_textEdit->setLineWrapMode(QPlainTextEdit::NoWrap);
     m_textEdit->setTabStopDistance(m_textEdit->fontMetrics().horizontalAdvance(' ') * 4);
+
+    // C/C++ files get syntax highlighting (parented to the document).
+    if (m_document && isCppFile(m_document->fileName())) {
+        new CppSyntaxHighlighter(m_textEdit->document());
+    }
+
+    if (m_document) {
+        m_breadcrumbs->setFilePath(m_document->path());
+        connect(m_document, &Document::pathChanged, this, [this](const QString &path) {
+            m_breadcrumbs->setFilePath(path);
+        });
+    }
 
     reloadFromDocument();
 

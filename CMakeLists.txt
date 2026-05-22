@@ -7,12 +7,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets Test)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Svg Test)
 
 add_library(malloywriter_core STATIC
     src/assistant/AssistantService.cpp
+    src/base/Color.cpp
     src/base/Log.cpp
     src/base/PathUtils.cpp
+    src/base/Theme.cpp
     src/platform/BuildSystem.cpp
     src/platform/BuildService.cpp
     src/platform/CMakeFileApi.cpp
@@ -23,19 +25,28 @@ add_library(malloywriter_core STATIC
     src/platform/SettingsService.cpp
     src/platform/ToolchainKit.cpp
     src/platform/WorkspaceModel.cpp
+    src/editor/Breadcrumbs.cpp
     src/editor/CodeEditor.cpp
+    src/editor/CppSyntaxHighlighter.cpp
     src/editor/Document.cpp
     src/editor/EditorArea.cpp
+    src/editor/EditorTabBar.cpp
     src/editor/EditorWidget.cpp
+    src/editor/Minimap.cpp
     src/languages/CppLanguageSupport.cpp
     src/languages/ClangdLanguageService.cpp
     src/languages/JsonRpcTransport.cpp
     src/languages/LanguageClient.cpp
+    src/languages/LspDiagnosticMapper.cpp
     src/debug/DebugAdapterClient.cpp
+    src/workbench/ActivityBar.cpp
     src/workbench/CommandPalette.cpp
+    src/workbench/Icon.cpp
     src/workbench/MainWindow.cpp
     src/workbench/OutputPanel.cpp
     src/workbench/ProjectExplorer.cpp
+    src/workbench/Sidebar.cpp
+    src/workbench/StatusBar.cpp
 )
 
 target_include_directories(malloywriter_core
@@ -46,6 +57,7 @@ target_include_directories(malloywriter_core
 target_link_libraries(malloywriter_core
     PUBLIC
         Qt6::Widgets
+        Qt6::Svg
 )
 
 if(MSVC)
@@ -69,6 +81,10 @@ function(add_malloywriter_test test_name source_file)
 endfunction()
 
 add_malloywriter_test(command_registry_tests tests/command_registry_tests.cpp)
+add_malloywriter_test(theme_tests tests/theme_tests.cpp)
+add_malloywriter_test(lsp_diagnostic_mapper_tests tests/lsp_diagnostic_mapper_tests.cpp)
+add_malloywriter_test(project_service_tests tests/project_service_tests.cpp)
+add_malloywriter_test(cpp_syntax_highlighter_tests tests/cpp_syntax_highlighter_tests.cpp)
 add_malloywriter_test(document_tests tests/document_tests.cpp)
 add_malloywriter_test(document_service_tests tests/document_service_tests.cpp)
 add_malloywriter_test(workspace_model_tests tests/workspace_model_tests.cpp)

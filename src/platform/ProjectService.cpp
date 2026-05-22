@@ -108,9 +108,16 @@ bool ProjectService::refreshCMakeModel(QString *errorMessage)
         return false;
     }
 
-    m_cmakeModel = CMakeFileApi::readModel(workspaceRoot(), buildDirectory(), errorMessage);
+    QString localError;
+    m_cmakeModel = CMakeFileApi::readModel(workspaceRoot(), buildDirectory(), &localError);
     emit cmakeModelChanged();
-    return errorMessage == nullptr || errorMessage->isEmpty();
+    if (!localError.isEmpty()) {
+        if (errorMessage) {
+            *errorMessage = localError;
+        }
+        return false;
+    }
+    return true;
 }
 
 void ProjectService::setActiveKit(const ToolchainKit &kit)

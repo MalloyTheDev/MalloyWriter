@@ -3,22 +3,44 @@
 #include "base/AppInfo.hpp"
 #include "base/PathUtils.hpp"
 #include "platform/BuildSystem.hpp"
+#include "base/Theme.hpp"
+#include "editor/Document.hpp"
+#include "languages/LspDiagnosticMapper.hpp"
+#include "workbench/ActivityBar.hpp"
 #include "workbench/CommandPalette.hpp"
 #include "workbench/OutputPanel.hpp"
 #include "workbench/ProjectExplorer.hpp"
+#include "workbench/Sidebar.hpp"
+#include "workbench/StatusBar.hpp"
 
 #include <QApplication>
 #include <QDir>
-#include <QDockWidget>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QHBoxLayout>
 #include <QInputDialog>
+#include <QJsonArray>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QSplitter>
 #include <QStatusBar>
-#include <QToolBar>
+#include <QTimer>
+#include <QUrl>
+#include <QVBoxLayout>
+
+namespace {
+
+bool isCppPath(const QString &path)
+{
+    static const QStringList suffixes = {
+        "cpp", "cc", "cxx", "c", "hpp", "hxx", "h", "inl", "ipp", "tpp",
+    };
+    return suffixes.contains(QFileInfo(path).suffix().toLower());
+}
+
+} // namespace
 
 namespace MalloyWriter::Workbench {
 
@@ -38,6 +60,7 @@ QStringList executableFilter()
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , m_buildService(&m_projectService, this)
+    , m_clangd(this)
 {
     setupUi();
     registerCommands();
@@ -49,7 +72,11 @@ MainWindow::MainWindow(QWidget *parent)
     connect(&m_buildService, &Platform::BuildService::jobStarted, this, [this](const QString &label) {
         statusBar()->showMessage(tr("Running %1").arg(label));
     });
-    connect(&m_buildService, &Platform::BuildService::diagnosticsChanged, m_editorArea, &Editor::EditorArea::setDiagnostics);
+    connect(&m_buildService, &Platform::BuildService::diagnosticsChanged, this,
+            [this](const QList<Platform::Diagnostic> &diagnostics) {
+        m_buildDiagnostics = diagnostics;
+        refreshDiagnostics();
+    });
     connect(&m_buildService, &Platform::BuildService::jobFailedToStart, this, [this](const QString &label) {
         m_outputPanel->appendText(tr("Failed to start %1.\n").arg(label));
         statusBar()->showMessage(tr("Failed to start %1").arg(label), 5000);
@@ -66,6 +93,50 @@ MainWindow::MainWindow(QWidget *parent)
         m_settings.addRecentFile(path);
     });
 
+    // ---- Language intelligence (clangd) + live status ----
+    m_clangdChangeTimer = new QTimer(this);
+    m_clangdChangeTimer->setSingleShot(true);
+    m_clangdChangeTimer->setInterval(300);
+    connect(m_clangdChangeTimer, &QTimer::timeout, this, &MainWindow::flushClangdChanges);
+
+    connect(&m_clangd, &Languages::ClangdLanguageService::diagnosticsReceived, this,
+            [this](const QString &uri, const QJsonArray &diagnostics) {
+        const QString path = MalloyWriter::Base::normalizePath(QUrl(uri).toLocalFile());
+        m_clangdDiagnostics.removeIf([&path](const Platform::Diagnostic &diagnostic) {
+            return MalloyWriter::Base::normalizePath(diagnostic.filePath) == path;
+        });
+        m_clangdDiagnostics += Languages::diagnosticsFromLsp(uri, diagnostics);
+        refreshDiagnostics();
+    });
+    connect(&m_clangd, &Languages::ClangdLanguageService::statusChanged, this,
+            [this](const QString &status) { m_statusBar->setClangdStatus(status, true); });
+
+    connect(&m_documentService, &Platform::DocumentService::documentOpened, this,
+            [this](Editor::Document *document) {
+        if (!document || !isCppPath(document->path())) {
+            return;
+        }
+        m_clangdVersions.insert(document->path(), 1);
+        m_clangd.didOpen(document->path(), QStringLiteral("cpp"), document->text());
+        connect(document, &Editor::Document::textChanged, this, [this, document]() {
+            if (isCppPath(document->path())) {
+                m_pendingClangdChanges.insert(document->path());
+                m_clangdChangeTimer->start();
+            }
+        });
+    });
+    connect(&m_documentService, &Platform::DocumentService::documentSaved, this,
+            [this](Editor::Document *document) {
+        if (document && isCppPath(document->path())) {
+            m_clangd.didSave(document->path());
+        }
+    });
+
+    connect(m_editorArea, &Editor::EditorArea::cursorMoved, this,
+            [this](int line, int column) { m_statusBar->setCursorPosition(line, column); });
+    connect(m_editorArea, &Editor::EditorArea::currentDocumentChanged, this,
+            [this](Editor::Document *document) { updateLanguageMode(document); });
+
     restoreRecentWorkspace();
 }
 
@@ -74,24 +145,120 @@ void MainWindow::setupUi()
     setWindowTitle(tr("MalloyWriter %1").arg(MalloyWriter::Base::appVersion()));
     resize(1280, 820);
 
-    m_editorArea = new Editor::EditorArea(this);
-    setCentralWidget(m_editorArea);
-
+    // Activity bar + primary sidebar (hosting the existing project explorer).
+    m_activityBar = new ActivityBar(this);
+    m_sidebar = new Sidebar(this);
     m_projectExplorer = new ProjectExplorer(this);
-    auto *explorerDock = new QDockWidget(tr("Explorer"), this);
-    explorerDock->setObjectName("ExplorerDock");
-    explorerDock->setWidget(m_projectExplorer);
-    addDockWidget(Qt::LeftDockWidgetArea, explorerDock);
+    m_sidebar->setViewWidget(QStringLiteral("explorer"), m_projectExplorer);
 
+    // Editor region: editor area over a collapsible bottom panel.
+    m_editorArea = new Editor::EditorArea(this);
     m_outputPanel = new OutputPanel(this);
-    auto *outputDock = new QDockWidget(tr("Output"), this);
-    outputDock->setObjectName("OutputDock");
-    outputDock->setWidget(m_outputPanel);
-    addDockWidget(Qt::BottomDockWidgetArea, outputDock);
+
+    auto *editorSplit = new QSplitter(Qt::Vertical, this);
+    editorSplit->addWidget(m_editorArea);
+    editorSplit->addWidget(m_outputPanel);
+    editorSplit->setStretchFactor(0, 1);
+    editorSplit->setStretchFactor(1, 0);
+    editorSplit->setSizes({620, 200});
+
+    auto *editorRegion = new QWidget(this);
+    editorRegion->setObjectName(QStringLiteral("editorRegion"));
+    auto *editorLayout = new QVBoxLayout(editorRegion);
+    editorLayout->setContentsMargins(0, 0, 0, 0);
+    editorLayout->setSpacing(0);
+    editorLayout->addWidget(editorSplit);
+
+    // Assemble the shell row: activity | sidebar | editor region.
+    auto *central = new QWidget(this);
+    auto *row = new QHBoxLayout(central);
+    row->setContentsMargins(0, 0, 0, 0);
+    row->setSpacing(0);
+    row->addWidget(m_activityBar);
+    row->addWidget(m_sidebar);
+    row->addWidget(editorRegion, 1);
+    setCentralWidget(central);
+
+    m_statusBar = new StatusBar(this);
+    setStatusBar(m_statusBar);
 
     m_commandPalette = new CommandPalette(&m_commands, this);
 
-    statusBar()->showMessage(tr("Ready"));
+    connect(m_activityBar, &ActivityBar::viewChanged, m_sidebar, &Sidebar::setView);
+    connect(m_activityBar, &ActivityBar::settingsRequested, this, [this]() {
+        statusBar()->showMessage(tr("Settings view arrives in a later phase"), 4000);
+    });
+    connect(m_statusBar, &StatusBar::commandPaletteRequested, this, [this]() {
+        m_commandPalette->openPalette();
+    });
+    connect(m_statusBar, &StatusBar::panelToggleRequested, this, &MainWindow::toggleBottomPanel);
+
+    statusBar()->showMessage(tr("Ready"), 3000);
+}
+
+void MainWindow::toggleBottomPanel()
+{
+    if (m_outputPanel) {
+        m_outputPanel->setVisible(!m_outputPanel->isVisible());
+    }
+}
+
+void MainWindow::refreshDiagnostics()
+{
+    QList<Platform::Diagnostic> merged = m_buildDiagnostics;
+    merged += m_clangdDiagnostics;
+    m_editorArea->setDiagnostics(merged);
+
+    int errors = 0;
+    int warnings = 0;
+    for (const Platform::Diagnostic &diagnostic : merged) {
+        if (diagnostic.severity == Platform::DiagnosticSeverity::Error) {
+            ++errors;
+        } else if (diagnostic.severity == Platform::DiagnosticSeverity::Warning) {
+            ++warnings;
+        }
+    }
+    m_statusBar->setProblemCounts(errors, warnings);
+}
+
+void MainWindow::flushClangdChanges()
+{
+    for (const QString &path : m_pendingClangdChanges) {
+        if (auto *document = m_documentService.documentForPath(path)) {
+            m_clangd.didChange(path, document->text(), ++m_clangdVersions[path]);
+        }
+    }
+    m_pendingClangdChanges.clear();
+}
+
+void MainWindow::updateLanguageMode(Editor::Document *document)
+{
+    const auto &theme = MalloyWriter::Base::Theme::active();
+    QString label = tr("Plain Text");
+    QString icon = QStringLiteral("file");
+    QColor color = theme.color(QStringLiteral("muted"));
+
+    if (document) {
+        const QString suffix = QFileInfo(document->fileName()).suffix().toLower();
+        if (isCppPath(document->path())) {
+            label = QStringLiteral("C++");
+            icon = suffix.startsWith(QLatin1Char('h')) ? QStringLiteral("filehpp") : QStringLiteral("filecpp");
+            color = theme.color(QStringLiteral("tk-type"));
+        } else if (suffix == "cmake" || document->fileName().compare(QStringLiteral("CMakeLists.txt"), Qt::CaseInsensitive) == 0) {
+            label = QStringLiteral("CMake");
+            icon = QStringLiteral("filecmake");
+            color = theme.color(QStringLiteral("mod"));
+        } else if (suffix == "md") {
+            label = QStringLiteral("Markdown");
+            icon = QStringLiteral("filemd");
+            color = theme.color(QStringLiteral("text-soft"));
+        } else if (suffix == "json") {
+            label = QStringLiteral("JSON");
+            icon = QStringLiteral("filejson");
+            color = theme.color(QStringLiteral("tk-num"));
+        }
+    }
+    m_statusBar->setLanguageMode(label, icon, color);
 }
 
 void MainWindow::registerCommands()
@@ -169,16 +336,6 @@ void MainWindow::buildMenus()
     QMenu *projectMenu = menuBar()->addMenu(tr("&Project"));
     projectMenu->addAction(createActionForCommand(MalloyWriter::Base::Commands::RefreshProject));
 
-    auto *toolbar = addToolBar(tr("Main"));
-    toolbar->setObjectName("MainToolbar");
-    toolbar->addAction(createActionForCommand(MalloyWriter::Base::Commands::OpenFolder));
-    toolbar->addAction(createActionForCommand(MalloyWriter::Base::Commands::Save));
-    toolbar->addSeparator();
-    toolbar->addAction(createActionForCommand(MalloyWriter::Base::Commands::Configure));
-    toolbar->addAction(createActionForCommand(MalloyWriter::Base::Commands::Build));
-    toolbar->addAction(createActionForCommand(MalloyWriter::Base::Commands::Test));
-    toolbar->addAction(createActionForCommand(MalloyWriter::Base::Commands::RunExecutable));
-
     updateRecentMenus();
 }
 
@@ -223,6 +380,19 @@ void MainWindow::openWorkspace(const QString &path)
     m_settings.addRecentWorkspace(m_projectService.workspaceRoot());
     setWindowTitle(tr("MalloyWriter %1 - %2").arg(MalloyWriter::Base::appVersion(), MalloyWriter::Base::displayNameForPath(m_projectService.workspaceRoot())));
     statusBar()->showMessage(tr("Opened %1").arg(m_projectService.workspaceRoot()), 5000);
+
+    // Restart clangd for the new workspace root (header-only until a configure
+    // produces compile_commands.json).
+    m_clangd.stop();
+    m_clangdDiagnostics.clear();
+    m_clangdVersions.clear();
+    const Platform::ToolchainKit kit = m_projectService.activeKit();
+    if (!kit.clangdProgram.isEmpty() && m_clangd.start(kit, m_projectService.workspaceRoot())) {
+        m_statusBar->setClangdStatus(tr("clangd"), true);
+    } else {
+        m_statusBar->setClangdStatus(tr("clangd: off"), false);
+    }
+    refreshDiagnostics();
 }
 
 void MainWindow::openFile(const QString &path)

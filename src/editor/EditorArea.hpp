@@ -29,6 +29,7 @@ public:
 signals:
     void fileOpened(const QString &path);
     void currentDocumentChanged(Document *document);
+    void cursorMoved(int line, int column);
 
 private:
     void closeEditorTab(int index);

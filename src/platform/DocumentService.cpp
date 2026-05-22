@@ -74,7 +74,7 @@ bool DocumentService::saveAll(QStringList *failedPaths)
         if (!saveDocument(document, &error)) {
             allSaved = false;
             if (failedPaths) {
-                failedPaths->append(document ? document->path() : QString("unknown"));
+                failedPaths->append(document->path());
             }
         }
     }

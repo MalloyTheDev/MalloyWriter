@@ -1,23 +1,57 @@
 #include "editor/EditorArea.hpp"
 
 #include "base/PathUtils.hpp"
+#include "base/Theme.hpp"
+#include "editor/CodeEditor.hpp"
+#include "editor/EditorTabBar.hpp"
 #include "editor/EditorWidget.hpp"
+#include "workbench/Icon.hpp"
+
+#include <QTextCursor>
 
 #include <QFileInfo>
+#include <QHBoxLayout>
 #include <QMessageBox>
+#include <QToolButton>
 
 namespace MalloyWriter::Editor {
 
 EditorArea::EditorArea(QWidget *parent)
     : QTabWidget(parent)
 {
+    setTabBar(new EditorTabBar(this));
     setDocumentMode(true);
     setMovable(true);
-    setTabsClosable(true);
+    setTabsClosable(false); // the custom tab bar paints/handles its own close affordance
+
+    // Trailing tab-strip actions (decorative for now): chat / split / more.
+    auto *actions = new QWidget(this);
+    auto *actionsLayout = new QHBoxLayout(actions);
+    actionsLayout->setContentsMargins(4, 0, 6, 0);
+    actionsLayout->setSpacing(2);
+    const QColor iconColor = Base::Theme::active().color(QStringLiteral("text-soft"));
+    const struct { const char *icon; const char *tip; } actionDefs[] = {
+        {"ai", "Open Chat"}, {"split", "Split Editor"}, {"more", "More Actions"},
+    };
+    for (const auto &def : actionDefs) {
+        auto *button = new QToolButton(actions);
+        button->setObjectName(QStringLiteral("iconBtn"));
+        button->setIcon(Workbench::Icon::icon(QString::fromLatin1(def.icon), 14, iconColor));
+        button->setIconSize(QSize(14, 14));
+        button->setToolTip(QString::fromLatin1(def.tip));
+        button->setAutoRaise(true);
+        button->setFixedSize(24, 24);
+        actionsLayout->addWidget(button);
+    }
+    setCornerWidget(actions, Qt::TopRightCorner);
 
     connect(this, &QTabWidget::tabCloseRequested, this, &EditorArea::closeEditorTab);
     connect(this, &QTabWidget::currentChanged, this, [this](int) {
         emit currentDocumentChanged(currentDocument());
+        if (auto *editor = currentEditor()) {
+            const QTextCursor cursor = editor->textEdit()->textCursor();
+            emit cursorMoved(cursor.blockNumber() + 1, cursor.columnNumber() + 1);
+        }
     });
 }
 
@@ -63,6 +97,7 @@ bool EditorArea::openDocument(Document *document)
 
     auto *editor = new EditorWidget(document, this);
     const int tabIndex = addTab(editor, document->fileName());
+    EditorTabBar::setTabMeta(tabBar(), tabIndex, document->fileName(), document->isDirty(), false);
     setCurrentIndex(tabIndex);
     m_openDocumentsByPath.insert(normalizedPath, document);
 
@@ -71,6 +106,12 @@ bool EditorArea::openDocument(Document *document)
     });
     connect(document, &Document::pathChanged, this, [this, document]() {
         updateTabTitle(document);
+    });
+    connect(editor->textEdit(), &QPlainTextEdit::cursorPositionChanged, this, [this, editor]() {
+        if (currentWidget() == editor) {
+            const QTextCursor cursor = editor->textEdit()->textCursor();
+            emit cursorMoved(cursor.blockNumber() + 1, cursor.columnNumber() + 1);
+        }
     });
 
     emit fileOpened(normalizedPath);
@@ -174,9 +215,9 @@ void EditorArea::updateTabTitle(Document *document)
 
     if (auto *editor = widgetForDocument(document)) {
         const int index = indexOf(editor);
-        const QString title = document->isDirty() ? QString("*%1").arg(document->fileName()) : document->fileName();
-        setTabText(index, title);
+        setTabText(index, document->fileName());
         setTabToolTip(index, document->path());
+        EditorTabBar::setTabMeta(tabBar(), index, document->fileName(), document->isDirty(), false);
     }
 }
 

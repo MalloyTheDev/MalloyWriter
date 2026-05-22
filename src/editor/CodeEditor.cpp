@@ -1,5 +1,7 @@
 #include "editor/CodeEditor.hpp"
 
+#include "base/Theme.hpp"
+
 #include <QPainter>
 #include <QTextBlock>
 
@@ -42,13 +44,22 @@ int CodeEditor::lineNumberAreaWidth() const
         ++digits;
     }
 
-    return 10 + fontMetrics().horizontalAdvance(QLatin1Char('9')) * digits;
+    // marks strip (git bar + diagnostic square) + numbers + right padding
+    return 16 + fontMetrics().horizontalAdvance(QLatin1Char('9')) * digits + 6;
 }
 
 void CodeEditor::lineNumberAreaPaintEvent(QPaintEvent *event)
 {
+    const Base::Theme &theme = Base::Theme::active();
     QPainter painter(m_lineNumberArea);
-    painter.fillRect(event->rect(), QColor(35, 38, 45));
+    painter.fillRect(event->rect(), theme.color(QStringLiteral("bg-elev")));
+
+    const QColor numberColor = theme.color(QStringLiteral("faint"));
+    const QColor errColor = theme.color(QStringLiteral("err"));
+    const QColor warnColor = theme.color(QStringLiteral("warn"));
+    const QColor addColor = theme.color(QStringLiteral("ok"));
+    const QColor modColor = theme.color(QStringLiteral("mod"));
+    const int areaWidth = m_lineNumberArea->width();
 
     QTextBlock block = firstVisibleBlock();
     int blockNumber = block.blockNumber();
@@ -58,18 +69,31 @@ void CodeEditor::lineNumberAreaPaintEvent(QPaintEvent *event)
     while (block.isValid() && top <= event->rect().bottom()) {
         if (block.isVisible() && bottom >= event->rect().top()) {
             const int line = blockNumber + 1;
-            QColor color(160, 168, 180);
+            const int lineHeight = fontMetrics().height();
+
+            // Source-control bar (left edge).
+            const auto markIt = m_lineMarks.constFind(line);
+            if (markIt != m_lineMarks.constEnd()) {
+                painter.fillRect(QRect(0, top, 2, bottom - top),
+                                 markIt.value() == LineMark::GitAdded ? addColor : modColor);
+            }
+
+            // Diagnostic square + number tint.
+            QColor color = numberColor;
             for (const auto &diagnostic : m_diagnostics) {
                 if (diagnostic.line == line) {
                     color = diagnostic.severity == MalloyWriter::Platform::DiagnosticSeverity::Error
-                        ? QColor(236, 92, 92)
-                        : QColor(236, 184, 92);
+                        ? errColor
+                        : warnColor;
+                    painter.setPen(Qt::NoPen);
+                    painter.setBrush(color);
+                    painter.drawRect(QRect(5, top + lineHeight / 2 - 2, 5, 5));
                     break;
                 }
             }
 
             painter.setPen(color);
-            painter.drawText(0, top, m_lineNumberArea->width() - 4, fontMetrics().height(), Qt::AlignRight, QString::number(line));
+            painter.drawText(0, top, areaWidth - 6, lineHeight, Qt::AlignRight, QString::number(line));
         }
 
         block = block.next();
@@ -82,6 +106,12 @@ void CodeEditor::lineNumberAreaPaintEvent(QPaintEvent *event)
 void CodeEditor::setDiagnostics(const QList<MalloyWriter::Platform::Diagnostic> &diagnostics)
 {
     m_diagnostics = diagnostics;
+    m_lineNumberArea->update();
+}
+
+void CodeEditor::setLineMarks(const QHash<int, LineMark> &marks)
+{
+    m_lineMarks = marks;
     m_lineNumberArea->update();
 }
 
@@ -150,7 +180,7 @@ void CodeEditor::highlightCurrentLine()
     QList<QTextEdit::ExtraSelection> selections;
     if (!isReadOnly()) {
         QTextEdit::ExtraSelection selection;
-        selection.format.setBackground(QColor(49, 53, 62));
+        selection.format.setBackground(Base::Theme::active().color(QStringLiteral("surface")));
         selection.format.setProperty(QTextFormat::FullWidthSelection, true);
         selection.cursor = textCursor();
         selection.cursor.clearSelection();
