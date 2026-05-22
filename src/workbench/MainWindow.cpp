@@ -11,7 +11,10 @@
 #include "workbench/OpenEditorsList.hpp"
 #include "workbench/OutputPanel.hpp"
 #include "workbench/ProjectExplorer.hpp"
+#include "workbench/RunDebugView.hpp"
+#include "workbench/SearchView.hpp"
 #include "workbench/Sidebar.hpp"
+#include "workbench/StaticSidebarViews.hpp"
 #include "workbench/StatusBar.hpp"
 
 #include <QApplication>
@@ -161,6 +164,30 @@ void MainWindow::setupUi()
     explorerLayout->addWidget(new OpenEditorsList(m_editorArea, explorerPanel));
     explorerLayout->addWidget(m_projectExplorer, 1);
     m_sidebar->setViewWidget(QStringLiteral("explorer"), explorerPanel);
+
+    // Search view backed by a real recursive workspace search.
+    auto *searchView = new SearchView(this);
+    m_sidebar->setViewWidget(QStringLiteral("search"), searchView);
+    connect(&m_projectService, &Platform::ProjectService::workspaceChanged,
+            searchView, &SearchView::setWorkspaceRoot);
+    connect(searchView, &SearchView::openRequested, this, [this](const QString &path, int line, int) {
+        openFile(path);
+        m_editorArea->goToLineInCurrent(line);
+    });
+
+    // Run & Debug view: launch targets from the CMake model.
+    auto *runView = new RunDebugView(this);
+    m_sidebar->setViewWidget(QStringLiteral("run"), runView);
+    runView->setTargets(m_projectService.executableTargets());
+    connect(&m_projectService, &Platform::ProjectService::cmakeModelChanged, runView, [this, runView]() {
+        runView->setTargets(m_projectService.executableTargets());
+    });
+    connect(runView, &RunDebugView::runRequested, this, [this](const QString &) { runExecutable(); });
+
+    // Prototype-faithful static views (Git / extensions / assistant services land later).
+    m_sidebar->setViewWidget(QStringLiteral("scm"), new ScmView(this));
+    m_sidebar->setViewWidget(QStringLiteral("ext"), new ExtensionsView(this));
+    m_sidebar->setViewWidget(QStringLiteral("ai"), new AssistView(this));
 
     // Editor region: editor area over a collapsible bottom panel.
     auto *editorSplit = new QSplitter(Qt::Vertical, this);

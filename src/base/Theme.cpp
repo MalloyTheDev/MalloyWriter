@@ -249,6 +249,10 @@ QPushButton:pressed { background-color: %accent-bg%; }
 QPushButton:default { background-color: %accent-deep%; color: %accent-fg%; border: 0; }
 QPushButton:disabled { color: %faint%; border-color: %border-soft%; }
 
+QToolButton { background: transparent; color: %text-soft%; border: 0; border-radius: 3px; padding: 3px; }
+QToolButton:hover { background-color: %surface%; color: %text%; }
+QToolButton:checked { color: %accent%; background-color: %accent-bg%; }
+
 QScrollBar:vertical { background: transparent; width: 12px; margin: 0; }
 QScrollBar::handle:vertical { background-color: %border%; border-radius: 6px; min-height: 24px; }
 QScrollBar::handle:vertical:hover { background-color: %muted%; }

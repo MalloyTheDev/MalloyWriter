@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets Svg Test)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Svg Concurrent Test)
 
 add_library(malloywriter_core STATIC
     src/assistant/AssistantService.cpp
@@ -22,6 +22,7 @@ add_library(malloywriter_core STATIC
     src/platform/DocumentService.cpp
     src/platform/ProcessRunner.cpp
     src/platform/ProjectService.cpp
+    src/platform/SearchService.cpp
     src/platform/SettingsService.cpp
     src/platform/ToolchainKit.cpp
     src/platform/WorkspaceModel.cpp
@@ -46,7 +47,10 @@ add_library(malloywriter_core STATIC
     src/workbench/OpenEditorsList.cpp
     src/workbench/OutputPanel.cpp
     src/workbench/ProjectExplorer.cpp
+    src/workbench/RunDebugView.cpp
+    src/workbench/SearchView.cpp
     src/workbench/Sidebar.cpp
+    src/workbench/StaticSidebarViews.cpp
     src/workbench/StatusBar.cpp
 )
 
@@ -59,6 +63,7 @@ target_link_libraries(malloywriter_core
     PUBLIC
         Qt6::Widgets
         Qt6::Svg
+        Qt6::Concurrent
 )
 
 if(MSVC)
@@ -86,6 +91,7 @@ add_malloywriter_test(theme_tests tests/theme_tests.cpp)
 add_malloywriter_test(lsp_diagnostic_mapper_tests tests/lsp_diagnostic_mapper_tests.cpp)
 add_malloywriter_test(project_service_tests tests/project_service_tests.cpp)
 add_malloywriter_test(cpp_syntax_highlighter_tests tests/cpp_syntax_highlighter_tests.cpp)
+add_malloywriter_test(search_service_tests tests/search_service_tests.cpp)
 add_malloywriter_test(document_tests tests/document_tests.cpp)
 add_malloywriter_test(document_service_tests tests/document_service_tests.cpp)
 add_malloywriter_test(workspace_model_tests tests/workspace_model_tests.cpp)
