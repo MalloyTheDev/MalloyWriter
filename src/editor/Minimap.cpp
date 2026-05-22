@@ -5,6 +5,7 @@
 
 #include <QPainter>
 #include <QScrollBar>
+#include <QTimer>
 
 namespace MalloyWriter::Editor {
 
@@ -19,8 +20,16 @@ Minimap::Minimap(CodeEditor *editor, QWidget *parent)
     , m_editor(editor)
 {
     setFixedWidth(kMinimapWidth);
+
+    // Rebuilding scans the whole document; debounce so rapid edits (and the
+    // highlighter's format-change notifications) don't trigger a rebuild each time.
+    m_rebuildTimer = new QTimer(this);
+    m_rebuildTimer->setSingleShot(true);
+    m_rebuildTimer->setInterval(120);
+    connect(m_rebuildTimer, &QTimer::timeout, this, [this]() { rebuild(); });
+
     if (m_editor) {
-        connect(m_editor, &QPlainTextEdit::textChanged, this, [this]() { rebuild(); });
+        connect(m_editor, &QPlainTextEdit::textChanged, m_rebuildTimer, qOverload<>(&QTimer::start));
         connect(m_editor->verticalScrollBar(), &QScrollBar::valueChanged, this, [this]() { update(); });
     }
     rebuild();

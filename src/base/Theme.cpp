@@ -94,24 +94,27 @@ QHash<QString, Oklch> Theme::resolveTokens() const
     return tokens;
 }
 
+const QHash<QString, QColor> &Theme::resolvedPalette() const
+{
+    if (!m_paletteValid) {
+        m_paletteCache.clear();
+        const auto tokens = resolveTokens();
+        for (auto it = tokens.constBegin(); it != tokens.constEnd(); ++it) {
+            m_paletteCache.insert(it.key(), oklchToColor(it.value()));
+        }
+        m_paletteValid = true;
+    }
+    return m_paletteCache;
+}
+
 QColor Theme::color(const QString &token) const
 {
-    const auto tokens = resolveTokens();
-    const auto it = tokens.constFind(token);
-    if (it == tokens.constEnd()) {
-        return {};
-    }
-    return oklchToColor(it.value());
+    return resolvedPalette().value(token);
 }
 
 QHash<QString, QColor> Theme::palette() const
 {
-    QHash<QString, QColor> resolved;
-    const auto tokens = resolveTokens();
-    for (auto it = tokens.constBegin(); it != tokens.constEnd(); ++it) {
-        resolved.insert(it.key(), oklchToColor(it.value()));
-    }
-    return resolved;
+    return resolvedPalette();
 }
 
 QString Theme::variantId(ThemeVariant variant)

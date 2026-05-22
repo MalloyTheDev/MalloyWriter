@@ -3,6 +3,8 @@
 #include <QVector>
 #include <QWidget>
 
+class QTimer;
+
 namespace MalloyWriter::Editor {
 
 class CodeEditor;
@@ -30,6 +32,7 @@ private:
     void rebuild();
 
     CodeEditor *m_editor = nullptr;
+    QTimer *m_rebuildTimer = nullptr;
     QVector<Row> m_rows;
 };
 

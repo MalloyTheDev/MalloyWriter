@@ -22,8 +22,8 @@ class Theme {
 public:
     Theme() = default;
 
-    void setVariant(ThemeVariant variant) { m_variant = variant; }
-    void setAccentHue(double hueDegrees) { m_accentHue = hueDegrees; }
+    void setVariant(ThemeVariant variant) { m_variant = variant; m_paletteValid = false; }
+    void setAccentHue(double hueDegrees) { m_accentHue = hueDegrees; m_paletteValid = false; }
     ThemeVariant variant() const { return m_variant; }
     double accentHue() const { return m_accentHue; }
 
@@ -46,9 +46,14 @@ public:
 
 private:
     QHash<QString, Oklch> resolveTokens() const;
+    const QHash<QString, QColor> &resolvedPalette() const;
 
     ThemeVariant m_variant = ThemeVariant::Slate;
     double m_accentHue = 215.0; // teal, the prototype default
+
+    // Resolved sRGB palette is cached and rebuilt only when variant/accent change.
+    mutable QHash<QString, QColor> m_paletteCache;
+    mutable bool m_paletteValid = false;
 };
 
 } // namespace MalloyWriter::Base

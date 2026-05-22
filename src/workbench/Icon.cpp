@@ -116,14 +116,24 @@ bool Icon::has(const QString &name)
 
 QPixmap Icon::pixmap(const QString &name, int size, const QColor &color)
 {
+    const qreal dpr = qApp ? qApp->devicePixelRatio() : 1.0;
+
+    // Cache rendered pixmaps: re-parsing the SVG on every widget repaint is
+    // wasteful, and icons are drawn frequently (tabs, status bar, activity bar).
+    static QHash<QString, QPixmap> cache;
+    const QString key = QStringLiteral("%1|%2|%3|%4")
+                            .arg(name).arg(size).arg(color.name(QColor::HexArgb)).arg(dpr);
+    const auto cached = cache.constFind(key);
+    if (cached != cache.constEnd()) {
+        return cached.value();
+    }
+
     const QString svg = buildSvg(name, color);
     if (svg.isEmpty()) {
         return {};
     }
 
-    const qreal dpr = qApp ? qApp->devicePixelRatio() : 1.0;
     QSvgRenderer renderer(svg.toUtf8());
-
     QPixmap pixmap(QSize(size, size) * dpr);
     pixmap.setDevicePixelRatio(dpr);
     pixmap.fill(Qt::transparent);
@@ -131,6 +141,8 @@ QPixmap Icon::pixmap(const QString &name, int size, const QColor &color)
     QPainter painter(&pixmap);
     painter.setRenderHint(QPainter::Antialiasing, true);
     renderer.render(&painter, QRectF(0, 0, size, size));
+
+    cache.insert(key, pixmap);
     return pixmap;
 }
 
