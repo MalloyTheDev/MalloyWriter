@@ -43,6 +43,7 @@ add_library(malloywriter_core STATIC
     src/workbench/ActivityBar.cpp
     src/workbench/BottomPanel.cpp
     src/workbench/CommandPalette.cpp
+    src/workbench/ComposerDialog.cpp
     src/workbench/Icon.cpp
     src/workbench/MainWindow.cpp
     src/workbench/OpenEditorsList.cpp
@@ -50,9 +51,12 @@ add_library(malloywriter_core STATIC
     src/workbench/ProjectExplorer.cpp
     src/workbench/RunDebugView.cpp
     src/workbench/SearchView.cpp
+    src/workbench/SettingsView.cpp
     src/workbench/Sidebar.cpp
     src/workbench/StaticSidebarViews.cpp
     src/workbench/StatusBar.cpp
+    src/workbench/ThemeApplication.cpp
+    src/workbench/WelcomeScreen.cpp
 )
 
 target_include_directories(malloywriter_core

@@ -16,6 +16,7 @@
 
 class QAction;
 class QMenu;
+class QStackedWidget;
 class QTimer;
 
 namespace MalloyWriter::Workbench {
@@ -23,10 +24,13 @@ namespace MalloyWriter::Workbench {
 class ActivityBar;
 class BottomPanel;
 class CommandPalette;
+class ComposerDialog;
 class OutputPanel;
 class ProjectExplorer;
+class SettingsView;
 class Sidebar;
 class StatusBar;
+class WelcomeScreen;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -59,6 +63,9 @@ private:
     void refreshDiagnostics();
     void flushClangdChanges();
     void updateLanguageMode(MalloyWriter::Editor::Document *document);
+    void showSettingsPage();
+    void updateMainPage();
+    void openComposer();
 
     MalloyWriter::Platform::CommandRegistry m_commands;
     MalloyWriter::Platform::SettingsService m_settings;
@@ -77,6 +84,10 @@ private:
     ActivityBar *m_activityBar = nullptr;
     Sidebar *m_sidebar = nullptr;
     StatusBar *m_statusBar = nullptr;
+    QStackedWidget *m_mainStack = nullptr;
+    QWidget *m_editorRegion = nullptr;
+    WelcomeScreen *m_welcome = nullptr;
+    SettingsView *m_settingsView = nullptr;
     ProjectExplorer *m_projectExplorer = nullptr;
     BottomPanel *m_bottomPanel = nullptr;
     OutputPanel *m_outputPanel = nullptr;

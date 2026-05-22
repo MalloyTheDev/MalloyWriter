@@ -247,6 +247,7 @@ QPushButton {
 QPushButton:hover { background-color: %surface-hi%; }
 QPushButton:pressed { background-color: %accent-bg%; }
 QPushButton:default { background-color: %accent-deep%; color: %accent-fg%; border: 0; }
+QPushButton:checked { background-color: %accent-bg%; color: %text%; border: 1px solid %accent%; }
 QPushButton:disabled { color: %faint%; border-color: %border-soft%; }
 
 QToolButton { background: transparent; color: %text-soft%; border: 0; border-radius: 3px; padding: 3px; }
@@ -261,6 +262,12 @@ QPushButton#panelTab {
 }
 QPushButton#panelTab:hover { color: %text-soft%; }
 QPushButton#panelTab:checked { color: %text%; border-top: 2px solid %accent%; }
+
+#startCard { background-color: %bg-elev%; border: 1px solid %border-soft%; border-radius: 6px; }
+#startCard:hover { border-color: %accent%; }
+#welcomeTitle { color: %text%; }
+#recentRow { color: %text-soft%; border-radius: 4px; padding: 4px 6px; text-align: left; background: transparent; border: 0; }
+#recentRow:hover { background-color: %surface%; }
 
 QScrollBar:vertical { background: transparent; width: 12px; margin: 0; }
 QScrollBar::handle:vertical { background-color: %border%; border-radius: 6px; min-height: 24px; }

@@ -9,6 +9,9 @@
 #include "workbench/ActivityBar.hpp"
 #include "workbench/BottomPanel.hpp"
 #include "workbench/CommandPalette.hpp"
+#include "workbench/ComposerDialog.hpp"
+#include "workbench/SettingsView.hpp"
+#include "workbench/WelcomeScreen.hpp"
 #include "workbench/OpenEditorsList.hpp"
 #include "workbench/OutputPanel.hpp"
 #include "workbench/ProjectExplorer.hpp"
@@ -29,7 +32,9 @@
 #include <QLineEdit>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QShortcut>
 #include <QSplitter>
+#include <QStackedWidget>
 #include <QStatusBar>
 #include <QTimer>
 #include <QUrl>
@@ -205,21 +210,29 @@ void MainWindow::setupUi()
         m_editorArea->goToLineInCurrent(line);
     });
 
-    auto *editorRegion = new QWidget(this);
-    editorRegion->setObjectName(QStringLiteral("editorRegion"));
-    auto *editorLayout = new QVBoxLayout(editorRegion);
+    m_editorRegion = new QWidget(this);
+    m_editorRegion->setObjectName(QStringLiteral("editorRegion"));
+    auto *editorLayout = new QVBoxLayout(m_editorRegion);
     editorLayout->setContentsMargins(0, 0, 0, 0);
     editorLayout->setSpacing(0);
     editorLayout->addWidget(editorSplit);
 
-    // Assemble the shell row: activity | sidebar | editor region.
+    // Main area swaps between the editor, the welcome screen, and settings.
+    m_welcome = new WelcomeScreen(this);
+    m_settingsView = new SettingsView(this);
+    m_mainStack = new QStackedWidget(this);
+    m_mainStack->addWidget(m_editorRegion);
+    m_mainStack->addWidget(m_welcome);
+    m_mainStack->addWidget(m_settingsView);
+
+    // Assemble the shell row: activity | sidebar | main stack.
     auto *central = new QWidget(this);
     auto *row = new QHBoxLayout(central);
     row->setContentsMargins(0, 0, 0, 0);
     row->setSpacing(0);
     row->addWidget(m_activityBar);
     row->addWidget(m_sidebar);
-    row->addWidget(editorRegion, 1);
+    row->addWidget(m_mainStack, 1);
     setCentralWidget(central);
 
     m_statusBar = new StatusBar(this);
@@ -228,14 +241,44 @@ void MainWindow::setupUi()
     m_commandPalette = new CommandPalette(&m_commands, this);
 
     connect(m_activityBar, &ActivityBar::viewChanged, m_sidebar, &Sidebar::setView);
-    connect(m_activityBar, &ActivityBar::settingsRequested, this, [this]() {
-        statusBar()->showMessage(tr("Settings view arrives in a later phase"), 4000);
+    connect(m_activityBar, &ActivityBar::viewChanged, this, [this](const QString &) {
+        if (m_mainStack->currentWidget() == m_settingsView) {
+            updateMainPage();
+        }
     });
+    connect(m_activityBar, &ActivityBar::settingsRequested, this, &MainWindow::showSettingsPage);
     connect(m_statusBar, &StatusBar::commandPaletteRequested, this, [this]() {
         m_commandPalette->openPalette();
     });
     connect(m_statusBar, &StatusBar::panelToggleRequested, this, &MainWindow::toggleBottomPanel);
 
+    // Welcome screen wiring.
+    connect(m_welcome, &WelcomeScreen::openFolderRequested, this, &MainWindow::openFolderDialog);
+    connect(m_welcome, &WelcomeScreen::openFileRequested, this, &MainWindow::openFileDialog);
+    connect(m_welcome, &WelcomeScreen::commandPaletteRequested, this, [this]() { m_commandPalette->openPalette(); });
+    connect(m_welcome, &WelcomeScreen::openRecentRequested, this, &MainWindow::openWorkspace);
+    m_welcome->setRecentWorkspaces(m_settings.recentWorkspaces());
+    connect(&m_settings, &Platform::SettingsService::recentWorkspacesChanged, this, [this]() {
+        m_welcome->setRecentWorkspaces(m_settings.recentWorkspaces());
+    });
+
+    // Editor / welcome page switching.
+    connect(m_editorArea, &Editor::EditorArea::fileOpened, this, [this](const QString &) {
+        m_mainStack->setCurrentWidget(m_editorRegion);
+    });
+    connect(m_editorArea, &Editor::EditorArea::openDocumentsChanged, this, [this]() {
+        if (m_mainStack->currentWidget() != m_settingsView) {
+            updateMainPage();
+        }
+    });
+
+    // Composer (Ctrl+Alt+I; Ctrl+K is reserved for chord commands) and Settings.
+    auto *composerShortcut = new QShortcut(QKeySequence(QStringLiteral("Ctrl+Alt+I")), this);
+    connect(composerShortcut, &QShortcut::activated, this, &MainWindow::openComposer);
+    auto *settingsShortcut = new QShortcut(QKeySequence(QStringLiteral("Ctrl+,")), this);
+    connect(settingsShortcut, &QShortcut::activated, this, &MainWindow::showSettingsPage);
+
+    updateMainPage();
     statusBar()->showMessage(tr("Ready"), 3000);
 }
 
@@ -309,6 +352,26 @@ void MainWindow::updateLanguageMode(Editor::Document *document)
         }
     }
     m_statusBar->setLanguageMode(label, icon, color);
+}
+
+void MainWindow::showSettingsPage()
+{
+    m_mainStack->setCurrentWidget(m_settingsView);
+}
+
+void MainWindow::updateMainPage()
+{
+    if (!m_editorArea->orderedDocuments().isEmpty()) {
+        m_mainStack->setCurrentWidget(m_editorRegion);
+    } else {
+        m_mainStack->setCurrentWidget(m_welcome);
+    }
+}
+
+void MainWindow::openComposer()
+{
+    ComposerDialog dialog(this);
+    dialog.exec();
 }
 
 void MainWindow::registerCommands()
