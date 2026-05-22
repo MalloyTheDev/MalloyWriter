@@ -162,6 +162,13 @@ QMainWindow::separator { background-color: %border-soft%; width: 1px; height: 1p
 #editorRegion { background-color: %bg%; }
 #sidebarTitle { color: %text-soft%; font-size: 11px; font-weight: 600; }
 #placeholderText { color: %muted%; font-size: 13px; }
+#groupHeader { color: %text-soft%; font-size: 11px; font-weight: 600; }
+QPushButton#openEditorRow {
+    background: transparent; border: 0; border-radius: 0;
+    padding: 3px 8px 3px 14px; text-align: left; color: %text-soft%;
+}
+QPushButton#openEditorRow:hover { background-color: %surface%; }
+QPushButton#openEditorRow[active="true"] { color: %text%; background-color: %accent-bg%; }
 QToolTip {
     background-color: %surface%; color: %text%;
     border: 1px solid %border%; padding: 4px 6px;

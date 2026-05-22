@@ -8,6 +8,7 @@
 #include "languages/LspDiagnosticMapper.hpp"
 #include "workbench/ActivityBar.hpp"
 #include "workbench/CommandPalette.hpp"
+#include "workbench/OpenEditorsList.hpp"
 #include "workbench/OutputPanel.hpp"
 #include "workbench/ProjectExplorer.hpp"
 #include "workbench/Sidebar.hpp"
@@ -145,16 +146,23 @@ void MainWindow::setupUi()
     setWindowTitle(tr("MalloyWriter %1").arg(MalloyWriter::Base::appVersion()));
     resize(1280, 820);
 
-    // Activity bar + primary sidebar (hosting the existing project explorer).
+    // Activity bar + primary sidebar.
     m_activityBar = new ActivityBar(this);
     m_sidebar = new Sidebar(this);
-    m_projectExplorer = new ProjectExplorer(this);
-    m_sidebar->setViewWidget(QStringLiteral("explorer"), m_projectExplorer);
-
-    // Editor region: editor area over a collapsible bottom panel.
     m_editorArea = new Editor::EditorArea(this);
     m_outputPanel = new OutputPanel(this);
+    m_projectExplorer = new ProjectExplorer(this);
 
+    // Explorer view = "Open Editors" group above the workspace file tree.
+    auto *explorerPanel = new QWidget(this);
+    auto *explorerLayout = new QVBoxLayout(explorerPanel);
+    explorerLayout->setContentsMargins(0, 0, 0, 0);
+    explorerLayout->setSpacing(0);
+    explorerLayout->addWidget(new OpenEditorsList(m_editorArea, explorerPanel));
+    explorerLayout->addWidget(m_projectExplorer, 1);
+    m_sidebar->setViewWidget(QStringLiteral("explorer"), explorerPanel);
+
+    // Editor region: editor area over a collapsible bottom panel.
     auto *editorSplit = new QSplitter(Qt::Vertical, this);
     editorSplit->addWidget(m_editorArea);
     editorSplit->addWidget(m_outputPanel);

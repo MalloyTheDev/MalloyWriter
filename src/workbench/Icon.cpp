@@ -1,5 +1,8 @@
 #include "workbench/Icon.hpp"
 
+#include "base/Color.hpp"
+
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QHash>
 #include <QPainter>
@@ -149,6 +152,33 @@ QPixmap Icon::pixmap(const QString &name, int size, const QColor &color)
 QIcon Icon::icon(const QString &name, int size, const QColor &color)
 {
     return QIcon(pixmap(name, size, color));
+}
+
+FileType Icon::fileType(const QString &fileName)
+{
+    const QString name = QFileInfo(fileName).fileName();
+    const QString suffix = QFileInfo(fileName).suffix().toLower();
+    auto oklch = [](double l, double c, double h) { return Base::oklchToColor({l, c, h}); };
+
+    if (name.compare(QStringLiteral("CMakeLists.txt"), Qt::CaseInsensitive) == 0 || suffix == "cmake") {
+        return {QStringLiteral("filecmake"), oklch(0.74, 0.13, 55)};
+    }
+    if (suffix == "cpp" || suffix == "cc" || suffix == "cxx" || suffix == "c") {
+        return {QStringLiteral("filecpp"), oklch(0.70, 0.13, 240)};
+    }
+    if (suffix == "hpp" || suffix == "hxx" || suffix == "h" || suffix == "inl" || suffix == "ipp") {
+        return {QStringLiteral("filehpp"), oklch(0.78, 0.12, 295)};
+    }
+    if (suffix == "md") {
+        return {QStringLiteral("filemd"), oklch(0.78, 0.005, 245)};
+    }
+    if (suffix == "json") {
+        return {QStringLiteral("filejson"), oklch(0.78, 0.13, 80)};
+    }
+    if (suffix == "git" || name.startsWith(QStringLiteral(".git"))) {
+        return {QStringLiteral("filegit"), oklch(0.65, 0.16, 30)};
+    }
+    return {QStringLiteral("file"), oklch(0.70, 0.005, 245)};
 }
 
 } // namespace MalloyWriter::Workbench

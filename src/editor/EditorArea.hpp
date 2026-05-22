@@ -17,6 +17,8 @@ public:
     explicit EditorArea(QWidget *parent = nullptr);
 
     Document *currentDocument() const;
+    QList<Document *> orderedDocuments() const;
+    void activateDocument(Document *document);
     bool openFile(const QString &path);
     bool openDocument(Document *document);
     bool saveCurrent();
@@ -30,6 +32,7 @@ signals:
     void fileOpened(const QString &path);
     void currentDocumentChanged(Document *document);
     void cursorMoved(int line, int column);
+    void openDocumentsChanged();
 
 private:
     void closeEditorTab(int index);

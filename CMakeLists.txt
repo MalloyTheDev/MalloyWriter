@@ -43,6 +43,7 @@ add_library(malloywriter_core STATIC
     src/workbench/CommandPalette.cpp
     src/workbench/Icon.cpp
     src/workbench/MainWindow.cpp
+    src/workbench/OpenEditorsList.cpp
     src/workbench/OutputPanel.cpp
     src/workbench/ProjectExplorer.cpp
     src/workbench/Sidebar.cpp

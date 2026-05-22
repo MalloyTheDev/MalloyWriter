@@ -61,6 +61,24 @@ Document *EditorArea::currentDocument() const
     return editor ? editor->documentModel() : nullptr;
 }
 
+QList<Document *> EditorArea::orderedDocuments() const
+{
+    QList<Document *> documents;
+    for (int i = 0; i < count(); ++i) {
+        if (auto *editor = qobject_cast<EditorWidget *>(widget(i)); editor && editor->documentModel()) {
+            documents.append(editor->documentModel());
+        }
+    }
+    return documents;
+}
+
+void EditorArea::activateDocument(Document *document)
+{
+    if (auto *editor = widgetForDocument(document)) {
+        setCurrentWidget(editor);
+    }
+}
+
 bool EditorArea::openFile(const QString &path)
 {
     const QString normalizedPath = MalloyWriter::Base::normalizePath(path);
@@ -103,9 +121,11 @@ bool EditorArea::openDocument(Document *document)
 
     connect(document, &Document::dirtyChanged, this, [this, document]() {
         updateTabTitle(document);
+        emit openDocumentsChanged();
     });
     connect(document, &Document::pathChanged, this, [this, document]() {
         updateTabTitle(document);
+        emit openDocumentsChanged();
     });
     connect(editor->textEdit(), &QPlainTextEdit::cursorPositionChanged, this, [this, editor]() {
         if (currentWidget() == editor) {
@@ -116,6 +136,7 @@ bool EditorArea::openDocument(Document *document)
 
     emit fileOpened(normalizedPath);
     emit currentDocumentChanged(document);
+    emit openDocumentsChanged();
     return true;
 }
 
@@ -205,6 +226,8 @@ void EditorArea::closeEditorTab(int index)
     m_openDocumentsByPath.remove(MalloyWriter::Base::normalizePath(document->path()));
     removeTab(index);
     editor->deleteLater();
+    emit openDocumentsChanged();
+    emit currentDocumentChanged(currentDocument());
 }
 
 void EditorArea::updateTabTitle(Document *document)

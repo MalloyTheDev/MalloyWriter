@@ -1,6 +1,9 @@
 #pragma once
 
+#include <QFileIconProvider>
 #include <QWidget>
+
+#include <memory>
 
 class QFileSystemModel;
 class QTreeView;
@@ -22,6 +25,7 @@ signals:
 private:
     QFileSystemModel *m_model = nullptr;
     QTreeView *m_tree = nullptr;
+    std::unique_ptr<QFileIconProvider> m_iconProvider;
     QString m_rootPath;
 };
 
