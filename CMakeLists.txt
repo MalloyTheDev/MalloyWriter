@@ -41,6 +41,7 @@ add_library(malloywriter_core STATIC
     src/languages/LspDiagnosticMapper.cpp
     src/debug/DebugAdapterClient.cpp
     src/workbench/ActivityBar.cpp
+    src/workbench/BottomPanel.cpp
     src/workbench/CommandPalette.cpp
     src/workbench/Icon.cpp
     src/workbench/MainWindow.cpp

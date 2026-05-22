@@ -21,6 +21,7 @@ class QTimer;
 namespace MalloyWriter::Workbench {
 
 class ActivityBar;
+class BottomPanel;
 class CommandPalette;
 class OutputPanel;
 class ProjectExplorer;
@@ -77,6 +78,7 @@ private:
     Sidebar *m_sidebar = nullptr;
     StatusBar *m_statusBar = nullptr;
     ProjectExplorer *m_projectExplorer = nullptr;
+    BottomPanel *m_bottomPanel = nullptr;
     OutputPanel *m_outputPanel = nullptr;
     CommandPalette *m_commandPalette = nullptr;
     QMenu *m_recentFilesMenu = nullptr;

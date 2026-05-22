@@ -7,6 +7,7 @@
 #include "editor/Document.hpp"
 #include "languages/LspDiagnosticMapper.hpp"
 #include "workbench/ActivityBar.hpp"
+#include "workbench/BottomPanel.hpp"
 #include "workbench/CommandPalette.hpp"
 #include "workbench/OpenEditorsList.hpp"
 #include "workbench/OutputPanel.hpp"
@@ -153,7 +154,8 @@ void MainWindow::setupUi()
     m_activityBar = new ActivityBar(this);
     m_sidebar = new Sidebar(this);
     m_editorArea = new Editor::EditorArea(this);
-    m_outputPanel = new OutputPanel(this);
+    m_bottomPanel = new BottomPanel(this);
+    m_outputPanel = m_bottomPanel->outputPanel();
     m_projectExplorer = new ProjectExplorer(this);
 
     // Explorer view = "Open Editors" group above the workspace file tree.
@@ -192,10 +194,16 @@ void MainWindow::setupUi()
     // Editor region: editor area over a collapsible bottom panel.
     auto *editorSplit = new QSplitter(Qt::Vertical, this);
     editorSplit->addWidget(m_editorArea);
-    editorSplit->addWidget(m_outputPanel);
+    editorSplit->addWidget(m_bottomPanel);
     editorSplit->setStretchFactor(0, 1);
     editorSplit->setStretchFactor(1, 0);
     editorSplit->setSizes({620, 200});
+
+    connect(m_bottomPanel, &BottomPanel::closeRequested, this, [this]() { m_bottomPanel->hide(); });
+    connect(m_bottomPanel, &BottomPanel::problemActivated, this, [this](const QString &path, int line, int) {
+        openFile(path);
+        m_editorArea->goToLineInCurrent(line);
+    });
 
     auto *editorRegion = new QWidget(this);
     editorRegion->setObjectName(QStringLiteral("editorRegion"));
@@ -233,8 +241,14 @@ void MainWindow::setupUi()
 
 void MainWindow::toggleBottomPanel()
 {
-    if (m_outputPanel) {
-        m_outputPanel->setVisible(!m_outputPanel->isVisible());
+    if (!m_bottomPanel) {
+        return;
+    }
+    if (m_bottomPanel->isVisible()) {
+        m_bottomPanel->hide();
+    } else {
+        m_bottomPanel->show();
+        m_bottomPanel->showProblems();
     }
 }
 
@@ -243,6 +257,7 @@ void MainWindow::refreshDiagnostics()
     QList<Platform::Diagnostic> merged = m_buildDiagnostics;
     merged += m_clangdDiagnostics;
     m_editorArea->setDiagnostics(merged);
+    m_bottomPanel->setProblems(merged);
 
     int errors = 0;
     int warnings = 0;
@@ -412,6 +427,7 @@ void MainWindow::openWorkspace(const QString &path)
     }
 
     m_projectExplorer->setRootPath(m_projectService.workspaceRoot());
+    m_bottomPanel->setWorkspaceRoot(m_projectService.workspaceRoot());
     m_settings.addRecentWorkspace(m_projectService.workspaceRoot());
     setWindowTitle(tr("MalloyWriter %1 - %2").arg(MalloyWriter::Base::appVersion(), MalloyWriter::Base::displayNameForPath(m_projectService.workspaceRoot())));
     statusBar()->showMessage(tr("Opened %1").arg(m_projectService.workspaceRoot()), 5000);

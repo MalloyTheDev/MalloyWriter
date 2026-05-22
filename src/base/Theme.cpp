@@ -253,6 +253,15 @@ QToolButton { background: transparent; color: %text-soft%; border: 0; border-rad
 QToolButton:hover { background-color: %surface%; color: %text%; }
 QToolButton:checked { color: %accent%; background-color: %accent-bg%; }
 
+#bottomPanel { background-color: %bg%; border-top: 1px solid %border-soft%; }
+#panelTabBar { background-color: %bg-titlebar%; border-bottom: 1px solid %border-soft%; }
+QPushButton#panelTab {
+    background: transparent; border: 0; border-top: 2px solid transparent;
+    border-radius: 0; padding: 5px 12px; color: %muted%;
+}
+QPushButton#panelTab:hover { color: %text-soft%; }
+QPushButton#panelTab:checked { color: %text%; border-top: 2px solid %accent%; }
+
 QScrollBar:vertical { background: transparent; width: 12px; margin: 0; }
 QScrollBar::handle:vertical { background-color: %border%; border-radius: 6px; min-height: 24px; }
 QScrollBar::handle:vertical:hover { background-color: %muted%; }
